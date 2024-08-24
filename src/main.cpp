@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <SPIFFS.h>
+#include "ESPAsyncWebServer.h"
 
 const char* ssid = "RoboR";  // Enter your SSID here
 const char* password = "mylittlewifi";  //Enter your Password here
 
-WebServer server(80);
+AsyncWebServer server(80);
 
 String header;
 
@@ -13,25 +14,40 @@ IPAddress local_IP(192, 168, 31, 200);
 IPAddress gateway(192, 168, 31, 1);
 IPAddress subnet(255, 255, 0, 0);
 
-String HTML = "<!DOCTYPE html>\
-<html>\
-<body>\
-<h1>My First Web Server with ESP32 - Station Mode POG &#128522;</h1>\
-<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>\
-</body>\
-</html>";
+// Set LED GPIO
+const int ledPin = 2;
+// Stores LED state
+String ledState;
 
-void handle_root() {
-  server.send(200, "text/html", HTML);
+String processor(const String& var){
+  Serial.println(var);
+  if(var == "STATE"){
+    if(digitalRead(ledPin)){
+      ledState = "ON";
+    }
+    else{
+      ledState = "OFF";
+    }
+    Serial.print(ledState);
+    return ledState;
+  }
+  return String();
 }
+
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("Connecting to");
+  Serial.print("Connecting to ");
   Serial.println(ssid);
+
+  if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 
   if (!WiFi.config(local_IP, gateway, subnet)) {
     Serial.println("STA Failed to configure IP config");
+    return;
   }
 
   WiFi.begin(ssid, password);
@@ -45,7 +61,9 @@ void setup() {
   Serial.print("Device IP: ");
   Serial.println(WiFi.localIP());
 
-  server.on("/", handle_root);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(SPIFFS, "/index.html", String(), false, processor);
+  });
   server.begin();
   Serial.println("Server started");
   delay(100);
@@ -53,7 +71,7 @@ void setup() {
 
 
 void loop() {
-  server.handleClient();
+  // server.handleClient();
 } 
 
 // 192.168.31.209
