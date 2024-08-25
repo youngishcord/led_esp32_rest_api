@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/styles.css">
+    <title>Color Picker</title>
+</head>
+
+<body>
+    <h1>Color Picker</h1>
+
+    <input type="checkbox" id="switchLed" /><label for="switchLed">On/Off</label>
+    
+    <p>Select a color:</p>
+    <input type="color" id="colorPicker" class="color-picker" value="#ff0000">
+    <div>
+        <input type="range" id="brightnes" name="brightnes" min="0" max="100" value="50" step="5" />
+    </div>
+
+    <div class="color-display" id="colorDisplay"></div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
