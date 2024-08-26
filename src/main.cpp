@@ -3,9 +3,13 @@
 #include <SPIFFS.h>
 #include "ESPAsyncWebServer.h"
 #include <ArduinoJson.h>
+#include <FastLED.h>
 
-#define RELE_PIN 13
-#define LED_PIN 12
+#define LEDS_PIN 13
+#define NUM_LEDS 120
+#define COLOR_ORDER GRB
+
+CRGB leds[NUM_LEDS];
 
 const char* ssid = "RoboR";  // Enter your SSID here
 const char* password = "mylittlewifi";  //Enter your Password here
@@ -18,32 +22,40 @@ IPAddress local_IP(192, 168, 31, 200);
 IPAddress gateway(192, 168, 31, 1);
 IPAddress subnet(255, 255, 0, 0);
 
+
 bool state = false;
-
-String ledState;
-
-String currentColor = "#00ff00";
-int brightnes = 40;
+String currentColor = "#000000";
+int brightness = 0;
 
 
-String processor(const String& var){
-  Serial.println(var);
-  if(var == "STATE"){
-    if(digitalRead(LED_PIN)){
-      ledState = "ON";
-    }
-    else{
-      ledState = "OFF";
-    }
-    Serial.print(ledState);
-    return ledState;
+void setAllLedColor(CRGB color) {
+  for(int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = color;
   }
-  return String();
+}
+
+CRGB hexStringToColor(const String& hexString) {
+    String cleanHexString = hexString;
+    cleanHexString.toUpperCase();
+    if (cleanHexString.startsWith("#")) {
+        cleanHexString = cleanHexString.substring(1);
+    } else if (cleanHexString.startsWith("0x")) {
+        cleanHexString = cleanHexString.substring(2);
+    }
+    
+    uint32_t color = (uint32_t) strtol(cleanHexString.c_str(), NULL, 16);
+    
+    return CRGB((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }
 
 
 void setup() {
-  pinMode(RELE_PIN, OUTPUT);
+  delay(1000);
+
+  FastLED.addLeds<WS2812B, LEDS_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.setBrightness(brightness);
+  FastLED.clear();
+  FastLED.show();
 
   Serial.begin(115200);
   Serial.print("Connecting to ");
@@ -71,7 +83,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/colorPalete/index.html", String(), false, processor);
+    request->send(SPIFFS, "/colorPalete/index.html", String(), false);
   });
   // server.on("/css/styles.css", HTTP_GET, [](AsyncWebServerRequest *request){
   //   request->send(SPIFFS, "/colorPalete/css/styles.css", "text/css");
@@ -82,16 +94,16 @@ void setup() {
 
   server.on("/:color", HTTP_POST, [](AsyncWebServerRequest *request) {
     // AsyncWebParameter* result = request->getParam("color");
-    Serial.println(123);
+    // Serial.println(123);
   });
 
   server.on("/getCurentState", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("call get current state");
+    // Serial.println("call get current state");
     JsonDocument json;
 
     json["state"] = state;
     json["color"] = currentColor;
-    json["brightnes"] = brightnes;
+    json["brightness"] = brightness;
 
     String message;
     serializeJson(json, message);
@@ -107,7 +119,7 @@ void setup() {
             message = "no result";
         }
         request->send(200);
-        Serial.println(currentColor);
+        // Serial.println(currentColor);
     });
 
   server.on("/update_state", HTTP_POST, [](AsyncWebServerRequest * request){}, 
@@ -126,18 +138,26 @@ void setup() {
       return;
     }
 
-    Serial.println(mess);
+    // Serial.println(mess);
 
     state = json["state"];
     const char* _color = json["color"];
     currentColor = String(_color);
-    brightnes = json["brightnes"];
+    brightness = json["brightness"];
 
-    Serial.println(state);
-    Serial.println(currentColor);
-    Serial.println(brightnes);
+    // Serial.println(state);
+    // Serial.println(currentColor);
+    // Serial.println(brightness);
 
-    digitalWrite(RELE_PIN, state);
+    if (state) {
+      // Serial.println("vistalau cvet");
+      setAllLedColor(hexStringToColor(currentColor));
+      FastLED.setBrightness(brightness);
+    } else {
+      // Serial.println("отключаю ленту");
+      FastLED.clear();
+    }
+    FastLED.show();
 
     request->send(200);
   });
